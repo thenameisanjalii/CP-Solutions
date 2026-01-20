@@ -1,0 +1,32 @@
+name: Codeforces Auto-Sync
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # Runs every 6 hours
+  workflow_dispatch:      # Allows manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Run Rating-Based Sync
+        env:
+          CF_HANDLE: "thenameisanjalii"
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          # Download the specialized script that sorts by rating
+          curl -sSL https://raw.githubusercontent.com/GitDaksh/CFCommit/main/sync_logic.py -o sync.py
+          
+          # We run the script. It will create folders like /800, /900, /1000 
+          # based on the problem rating it finds on Codeforces.
+          python sync.py
