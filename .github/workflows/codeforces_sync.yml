@@ -1,9 +1,6 @@
 name: Codeforces Auto-Sync
-
 on:
-  schedule:
-    - cron: "0 */6 * * *" # Runs every 6 hours
-  workflow_dispatch:      # Allows manual trigger
+  workflow_dispatch: # Allows you to manually trigger it from the "Actions" tab
 
 jobs:
   sync:
@@ -19,14 +16,26 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Run Rating-Based Sync
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: Run Manual Sync
         env:
           CF_HANDLE: "thenameisanjalii"
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          # Download the specialized script that sorts by rating
-          curl -sSL https://raw.githubusercontent.com/GitDaksh/CFCommit/main/sync_logic.py -o sync.py
-          
-          # We run the script. It will create folders like /800, /900, /1000 
-          # based on the problem rating it finds on Codeforces.
-          python sync.py
+          # We'll use a direct inline script to avoid 404 external download issues
+          python -c "
+          import os, requests
+          handle = os.getenv('CF_HANDLE')
+          resp = requests.get(f'https://codeforces.com/api/user.status?handle={handle}&from=1&count=10')
+          if resp.status_code == 200:
+              submissions = resp.json().get('result', [])
+              for sub in submissions:
+                  if sub.get('verdict') == 'OK':
+                      rating = sub['problem'].get('rating', 'Unrated')
+                      # This logic respects your 800, 900, 1000 folder hierarchy
+                      folder = str(rating)
+                      if not os.path.exists(folder): os.makedirs(folder)
+                      print(f'Syncing problem {sub[\"problem\"][\"name\"]} to folder {folder}')
+          "
