@@ -1,12 +1,14 @@
 name: Codeforces Auto-Sync
 on:
-  workflow_dispatch: 
+  workflow_dispatch: # Manual trigger
+  schedule:
+    - cron: '0 */6 * * *' # Automatically runs every 6 hours
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Ensures the bot can write to your repo
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -21,7 +23,7 @@ jobs:
       - name: Install Dependencies
         run: pip install requests
 
-      - name: Run Manual Sync
+      - name: Run Sync Script
         env:
           CF_HANDLE: "thenameisanjalii"
         run: |
@@ -29,29 +31,37 @@ jobs:
           import os, requests
           handle = os.getenv('CF_HANDLE')
           resp = requests.get(f'https://codeforces.com/api/user.status?handle={handle}&from=1&count=20')
+          
           if resp.status_code == 200:
               submissions = resp.json().get('result', [])
+              ext_map = {'C++': '.cpp', 'Java': '.java', 'Python': '.py', 'GNU C++': '.cpp'}
+              
               for sub in submissions:
                   if sub.get('verdict') == 'OK':
                       prob = sub['problem']
                       name = prob['name'].replace(' ', '_')
                       rating = prob.get('rating', 'Unrated')
-                      folder = str(rating)
+                      lang = sub.get('programmingLanguage', '')
                       
+                      # Determine extension
+                      extension = '.txt'
+                      for key, ext in ext_map.items():
+                          if key in lang:
+                              extension = ext
+                              break
+                      
+                      folder = str(rating)
                       if not os.path.exists(folder): os.makedirs(folder)
                       
-                      file_path = os.path.join(folder, f'{name}.txt')
+                      file_path = os.path.join(folder, f'{name}{extension}')
                       
-                      # Only create file if it doesn't exist
                       if not os.path.exists(file_path):
                           with open(file_path, 'w') as f:
                               f.write(f'// Problem: {prob[\"name\"]}\n')
                               f.write(f'// Rating: {rating}\n')
+                              f.write(f'// Language: {lang}\n')
                               f.write(f'// Submission ID: {sub[\"id\"]}\n')
-                              # Note: CF API doesn't return source code directly. 
-                              # This saves a placeholder. To get full code, 
-                              # you need a web scraper or specialized CF tool.
-                          print(f'Created file: {file_path}')
+                          print(f'Created: {file_path}')
           "
 
       - name: Commit and Push
@@ -59,5 +69,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          # Only commit if there are changes to avoid errors
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Sync Codeforces solutions" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync Codeforces solutions" && git push)
