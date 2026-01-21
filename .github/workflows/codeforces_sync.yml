@@ -1,10 +1,12 @@
 name: Codeforces Auto-Sync
 on:
-  workflow_dispatch: # Allows you to manually trigger it from the "Actions" tab
+  workflow_dispatch: 
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Ensures the bot can write to your repo
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -22,20 +24,40 @@ jobs:
       - name: Run Manual Sync
         env:
           CF_HANDLE: "thenameisanjalii"
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          # We'll use a direct inline script to avoid 404 external download issues
           python -c "
           import os, requests
           handle = os.getenv('CF_HANDLE')
-          resp = requests.get(f'https://codeforces.com/api/user.status?handle={handle}&from=1&count=10')
+          resp = requests.get(f'https://codeforces.com/api/user.status?handle={handle}&from=1&count=20')
           if resp.status_code == 200:
               submissions = resp.json().get('result', [])
               for sub in submissions:
                   if sub.get('verdict') == 'OK':
-                      rating = sub['problem'].get('rating', 'Unrated')
-                      # This logic respects your 800, 900, 1000 folder hierarchy
+                      prob = sub['problem']
+                      name = prob['name'].replace(' ', '_')
+                      rating = prob.get('rating', 'Unrated')
                       folder = str(rating)
+                      
                       if not os.path.exists(folder): os.makedirs(folder)
-                      print(f'Syncing problem {sub[\"problem\"][\"name\"]} to folder {folder}')
+                      
+                      file_path = os.path.join(folder, f'{name}.txt')
+                      
+                      # Only create file if it doesn't exist
+                      if not os.path.exists(file_path):
+                          with open(file_path, 'w') as f:
+                              f.write(f'// Problem: {prob[\"name\"]}\n')
+                              f.write(f'// Rating: {rating}\n')
+                              f.write(f'// Submission ID: {sub[\"id\"]}\n')
+                              # Note: CF API doesn't return source code directly. 
+                              # This saves a placeholder. To get full code, 
+                              # you need a web scraper or specialized CF tool.
+                          print(f'Created file: {file_path}')
           "
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          # Only commit if there are changes to avoid errors
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Sync Codeforces solutions" && git push)
