@@ -1,3 +1,0 @@
-// Problem: Ski Resort
-// Rating: 1000
-// Submission ID: 359106869
