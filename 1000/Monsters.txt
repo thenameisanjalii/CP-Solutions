@@ -1,3 +1,0 @@
-// Problem: Monsters
-// Rating: 1000
-// Submission ID: 359095568
