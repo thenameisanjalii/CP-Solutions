@@ -1,3 +1,0 @@
-// Problem: Helmets in Night Light
-// Rating: 1000
-// Submission ID: 358861865
