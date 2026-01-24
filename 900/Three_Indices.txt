@@ -1,0 +1,3 @@
+// Problem: Three Indices
+// Rating: 900
+// Submission ID: 357719693
